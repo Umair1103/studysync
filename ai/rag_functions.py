@@ -62,3 +62,21 @@ def create_rag_chain(vectorstore):
         return_source_documents=False
     )
     return qa
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
