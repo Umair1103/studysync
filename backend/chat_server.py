@@ -24,11 +24,11 @@ def create_room():
     room_id = str(uuid.uuid4())[:8]
     rooms[room_id] = set()
 
-    join_link = f"{PUBLIC_URL}/ws/{room_id}"
+    
 
     return {
         "room_id": room_id,
-        "join_link": join_link
+        
     }
 
 

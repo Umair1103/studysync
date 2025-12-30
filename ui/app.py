@@ -22,6 +22,10 @@ ask_question = ai_app.ask_question
 # ---------------------- STREAMLIT UI ----------------------
 st.title("StudySync AI – Complete System")
 
+# ---------------------- FORCE STREAMLIT RERUN FIX ----------------------
+def force_rerun():
+    st.session_state["_rerun"] = not st.session_state.get("_rerun", False)
+
 # ---------------------- AI UPLOAD & QUESTION ----------------------
 st.header("Upload Notes for AI Assistant")
 
@@ -53,15 +57,14 @@ if st.button("Ask"):
         st.write(reply)
 
 # ============================================================
-# 🔥 MULTI USER CHAT (PURE WEBSOCKET)
+#  MULTI USER CHAT (WEBSOCKET + AI)
 # ============================================================
 
 st.header("Online Multi-User Chat")
 
-# 🔴 CHANGE THIS TO YOUR NGROK URL (WITHOUT https://)
 BACKEND_HOST = "ofelia-prouniversity-filmily.ngrok-free.dev"
 
-# Session state
+# ---------------------- SESSION STATE ----------------------
 if "ws" not in st.session_state:
     st.session_state.ws = None
 
@@ -70,7 +73,6 @@ if "messages" not in st.session_state:
 
 if "room_id" not in st.session_state:
     st.session_state.room_id = None
-
 
 # ---------------------- CREATE ROOM ----------------------
 if st.button("Create New Chat Room"):
@@ -87,20 +89,20 @@ if st.button("Create New Chat Room"):
     except Exception as e:
         st.error(f"Error creating room: {e}")
 
-
-# ---------------------- JOIN ROOM ----------------------
-room_id_input = st.text_input("Enter Room ID to Join Chat")
-
+# ---------------------- RECEIVE MESSAGES THREAD ----------------------
 def receive_messages():
     ws = st.session_state.ws
     try:
         while True:
             msg = ws.recv()
             st.session_state.messages.append(msg)
-            time.sleep(0.1)
+            force_rerun()
+            time.sleep(0.05)
     except:
         pass
 
+# ---------------------- JOIN ROOM ----------------------
+room_id_input = st.text_input("Enter Room ID to Join Chat")
 
 if st.button("Join Chat"):
     if room_id_input.strip() == "":
@@ -115,13 +117,15 @@ if st.button("Join Chat"):
             st.session_state.ws = ws
             st.session_state.room_id = room_id_input
 
-            threading.Thread(target=receive_messages, daemon=True).start()
+            threading.Thread(
+                target=receive_messages,
+                daemon=True
+            ).start()
 
             st.success(f"Joined room {room_id_input}")
 
         except Exception as e:
             st.error(f"Error connecting to chat server: {e}")
-
 
 # ---------------------- DISPLAY MESSAGES ----------------------
 st.subheader("Messages")
@@ -129,15 +133,25 @@ st.subheader("Messages")
 for msg in st.session_state.messages:
     st.write(msg)
 
-
-# ---------------------- SEND MESSAGE ----------------------
+# ---------------------- SEND MESSAGE + AI REPLY ----------------------
 msg = st.text_input("Write a message")
 
 if st.button("Send"):
-    if st.session_state.ws:
+    if st.session_state.ws and msg.strip():
         try:
-            st.session_state.ws.send(msg)
+            # Send user message
+            st.session_state.ws.send(f"User: {msg}")
             st.session_state.messages.append(f"You: {msg}")
+
+            # 🤖 AI RESPONSE
+            with st.spinner("AI is typing..."):
+                ai_reply = ask_question(msg)
+
+            st.session_state.ws.send(f"AI: {ai_reply}")
+            st.session_state.messages.append(f"AI: {ai_reply}")
+
+            force_rerun()
+
         except Exception as e:
             st.error(f"Failed to send message: {e}")
     else:
